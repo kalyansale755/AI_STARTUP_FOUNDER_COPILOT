@@ -1,70 +1,58 @@
 import streamlit as st
 import requests
 
-st.set_page_config(page_title="AI Reports Dashboard", page_icon="📊", layout="wide")
+st.set_page_config(
+    page_title="AI Reports Dashboard",
+    page_icon="📊",
+    layout="wide"
+)
 
 if not st.session_state.get("logged_in"):
     st.switch_page("pages/login.py")
 
-server_url = "http://127.0.0.1:8000"
+API_URL = "http://127.0.0.1:8000"
 
 st.title("📊 AI Reports Dashboard")
 
-try:
-    res = requests.get(f"{server_url}/reports")
+if st.button("🔄 Refresh Reports"):
+    st.rerun()
 
-    if res.status_code == 200:
-        reports = res.json()
+try:
+    response = requests.get(f"{API_URL}/reports", timeout=10)
+
+    if response.status_code == 200:
+        reports = response.json()
     else:
         reports = []
+        st.error("Unable to fetch reports from server.")
 
-except:
+except Exception as e:
     reports = []
+    st.error(f"Connection Error: {e}")
 
 st.metric("Total Reports", len(reports))
 
 st.divider()
 
-if len(reports) == 0:
-    st.warning("No reports found. Generate analysis from Founder Dashboard.")
+if not reports:
+    st.info("No reports available. Generate an analysis from Founder Dashboard.")
 else:
-    market = []
-    finance = []
-    other = []
+    for index, report in enumerate(reports, start=1):
+        report_type = report.get("report_type", "AI Report")
+        report_content = report.get("report_content", "")
 
-    for r in reports:
-        rtype = r.get("report_type", "").lower()
-
-        if "market" in rtype:
-            market.append(r)
-        elif "finance" in rtype:
-            finance.append(r)
-        else:
-            other.append(r)
-
-    st.subheader("📈 Market Analysis Reports")
-    if market:
-        for r in market:
-            st.write(r.get("report_content", ""))
-            st.divider()
-    else:
-        st.info("No market reports")
-
-    st.subheader("💰 Financial Analysis Reports")
-    if finance:
-        for r in finance:
-            st.write(r.get("report_content", ""))
-            st.divider()
-    else:
-        st.info("No financial reports")
-
-    st.subheader("🎯 Other Reports")
-    if other:
-        for r in other:
-            st.write(r.get("report_content", ""))
-            st.divider()
+        with st.expander(f"📄 Report {index} - {report_type}"):
+            st.write(report_content)
 
 st.divider()
 
-if st.button("⬅ Back to Founder Dashboard"):
-    st.switch_page("pages/founder_dashboard.py")
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("⬅ Back to Founder Dashboard"):
+        st.switch_page("pages/founder_dashboard.py")
+
+with col2:
+    if st.button("🚪 Logout"):
+        st.session_state.clear()
+        st.switch_page("pages/login.py")
